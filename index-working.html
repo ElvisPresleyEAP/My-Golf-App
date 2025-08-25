@@ -147,79 +147,6 @@
                 }
             };
 
-            const resetScores = () => {
-                if (confirm('Are you sure you want to reset all scores? This action cannot be undone.')) {
-                    setScores(Array(18).fill(null).map(() => Array(players.length).fill('')));
-                    setPoints(Array(18).fill(null).map(() => Array(players.length).fill('')));
-                }
-            };
-
-            const shareViaWhatsApp = () => {
-                let message = `${scorecardTitle}%0A${clubName}%0A%0A`;
-                message += `📋 Final Scores:%0A`;
-                
-                players.forEach((player, index) => {
-                    const totalGross = playerGrossTotals[index] || 0;
-                    const totalPoints = playerPointTotals[index] || 0;
-                    const handicap = playerHandicaps[index] || 0;
-                    message += `${player} (HC: ${handicap}): ${totalGross} gross, ${totalPoints} points%0A`;
-                });
-                
-                message += `%0ATotal Par: ${totalPar}%0A%0A⛳ Powered by Golf Scorecard by Kamal`;
-                
-                const whatsappUrl = `https://wa.me/?text=${message}`;
-                window.open(whatsappUrl, '_blank');
-            };
-
-            const emailScorecard = () => {
-                let emailBody = `${scorecardTitle}\n${clubName}\n\n`;
-                emailBody += `📋 Final Scores:\n`;
-                
-                players.forEach((player, index) => {
-                    const totalGross = playerGrossTotals[index] || 0;
-                    const totalPoints = playerPointTotals[index] || 0;
-                    const handicap = playerHandicaps[index] || 0;
-                    emailBody += `${player} (HC: ${handicap}): ${totalGross} gross, ${totalPoints} points\n`;
-                });
-                
-                emailBody += `\nTotal Par: ${totalPar}\n\n⛳ Powered by Golf Scorecard by Kamal`;
-                
-                const subject = encodeURIComponent(`Golf Scorecard - ${clubName}`);
-                const body = encodeURIComponent(emailBody);
-                const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
-                
-                // Try to open email client
-                try {
-                    window.open(mailtoLink, '_self');
-                } catch (error) {
-                    // Fallback: copy to clipboard
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(emailBody.replace(/\\n/g, '\n'))
-                            .then(() => {
-                                alert('Scorecard copied to clipboard! You can now paste it into an email.');
-                            })
-                            .catch(() => {
-                                downloadScorecard(emailBody.replace(/\\n/g, '\n'));
-                            });
-                    } else {
-                        downloadScorecard(emailBody.replace(/\\n/g, '\n'));
-                    }
-                }
-            };
-
-            const downloadScorecard = (content) => {
-                const blob = new Blob([content], { type: 'text/plain' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${clubName.replace(/\s+/g, '_')}_scorecard.txt`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                alert('Scorecard downloaded as text file!');
-            };
-
             return (
                 <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans antialiased text-gray-800">
                     <div className="max-w-7xl mx-auto mb-6">
@@ -420,17 +347,6 @@
                                         })}
                                     </tr>
                                     
-                                    {/* Countback row */}
-                                    <tr className="bg-gray-200 border-t-2 border-gray-400 font-bold">
-                                        <td colSpan="3" className="py-2 px-2 md:px-4 text-center text-gray-700">Countback (Holes 13-18)</td>
-                                        {players.map((_, playerIndex) => (
-                                            <React.Fragment key={playerIndex}>
-                                                <td className="py-2 px-2 md:px-4 text-center"></td>
-                                                <td className="py-2 px-2 md:px-4 text-center text-gray-700">{playerCountbackPointTotals[playerIndex] || ''}</td>
-                                            </React.Fragment>
-                                        ))}
-                                    </tr>
-                                    
                                     {/* Total row */}
                                     <tr className="bg-teal-50 border-t-2 border-teal-600 font-bold">
                                         <td colSpan="2" className="py-3 px-2 md:px-4 text-center">Total</td>
@@ -438,43 +354,12 @@
                                         {playerGrossTotals.slice(0, players.length).map((total, index) => (
                                             <React.Fragment key={index}>
                                                 <td className="py-3 px-2 md:px-4 text-center text-teal-800">{total}</td>
-                                                <td className="py-3 px-2 md:px-4 text-center"></td>
-                                            </React.Fragment>
-                                        ))}
-                                    </tr>
-                                    <tr className="bg-teal-50 border-t border-gray-200 font-bold">
-                                        <td colSpan="3" className="py-3 px-2 md:px-4 text-center text-sm">Total Points</td>
-                                        {playerPointTotals.slice(0, players.length).map((total, index) => (
-                                            <React.Fragment key={index}>
-                                                <td className="py-3 px-2 md:px-4 text-center"></td>
-                                                <td className="py-3 px-2 md:px-4 text-center text-teal-800">{total}</td>
+                                                <td className="py-3 px-2 md:px-4 text-center text-teal-800">{playerPointTotals[index]}</td>
                                             </React.Fragment>
                                         ))}
                                     </tr>
                                 </tbody>
                             </table>
-                            
-                            {/* Action Buttons - Scorecard Tab Only */}
-                            <div className="bg-gray-50 px-6 py-4 border-t flex flex-wrap justify-center gap-4">
-                                <button
-                                    onClick={resetScores}
-                                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2"
-                                >
-                                    🔄 Reset Scores
-                                </button>
-                                <button
-                                    onClick={emailScorecard}
-                                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2"
-                                >
-                                    📧 Email Scorecard
-                                </button>
-                                <button
-                                    onClick={shareViaWhatsApp}
-                                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2"
-                                >
-                                    💬 Share via WhatsApp
-                                </button>
-                            </div>
                         </div>
                     )}
 
@@ -568,7 +453,7 @@
                                                             {playerData.totalPoints} pts
                                                         </div>
                                                         <div className="text-sm text-gray-500">
-                                                            Points: {playerData.totalPoints}
+                                                            Gross: {playerData.totalGross}
                                                         </div>
                                                     </div>
                                                 </div>
