@@ -1,12 +1,43 @@
-# React + Vite
+# Golf Scorecard by Kamal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A comprehensive golf scorecard web application with Stableford points calculation, handicap management, and sharing features.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- ✅ Support for up to 30 players
+- ✅ Automatic Stableford points calculation
+- ✅ Handicap management
+- ✅ Front 9, Back 9, and total score tracking
+- ✅ Countback scoring (Holes 13-18)
+- ✅ Auto-save functionality (browser local storage)
+- ✅ WhatsApp sharing
+- ✅ Email sharing with multiple fallback options
+- ✅ Responsive design (mobile-friendly)
+- ✅ Player management (add/remove players)
 
-## Expanding the ESLint configuration
+## Usage
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. Open the application in your web browser
+2. Enter player names and handicaps
+3. Input scores for each hole
+4. Points are automatically calculated based on Stableford system
+5. Use sharing buttons to send results via WhatsApp or email
+
+## Points System
+
+- Eagle or better: 4 points
+- Birdie: 3 points  
+- Par: 2 points
+- Bogey: 1 point
+- Double bogey or worse: 0 points
+
+## Live Demo
+
+Visit: [https://username.github.io/golf-scorecard](Your GitHub Pages URL will go here)
+
+## Local Development
+
+Simply open `index.html` in any modern web browser.
+
+---
+Created by Kamal

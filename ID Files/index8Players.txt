@@ -170,8 +170,8 @@
             };
 
             const handleAddPlayer = () => {
-                if (players.length >= 30) {
-                    alert('Maximum of 30 players allowed');
+                if (players.length >= 8) {
+                    alert('Maximum of 8 players allowed');
                     return;
                 }
                 
@@ -286,7 +286,6 @@
             };
 
             const handleShareEmail = () => {
-                // Create email content
                 let emailBody = `Scorecard Summary for: ${scorecardTitle}\n`;
                 emailBody += `Club: ${clubName}\n\n`;
                 emailBody += `Course Par: ${totalPar}\n\n`;
@@ -319,74 +318,10 @@
                 });
                 emailBody += `Shared from the Golf Scorekeeping App!`;
 
-                // Multiple fallback approaches
-                const tryEmailMethods = async () => {
-                    const subject = `Golf Scorecard: ${scorecardTitle}`;
-                    
-                    // Method 1: Try standard mailto (works best with shorter content)
-                    const shortEmailBody = `Scorecard Summary: ${clubName}\nCourse Par: ${totalPar}\n\nSee attached scorecard data.`;
-                    const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shortEmailBody)}`;
-                    
-                    // Method 2: Create a downloadable text file
-                    const createDownloadableFile = () => {
-                        const blob = new Blob([emailBody], { type: 'text/plain' });
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.style.display = 'none';
-                        a.href = url;
-                        a.download = `golf-scorecard-${new Date().toISOString().split('T')[0]}.txt`;
-                        document.body.appendChild(a);
-                        a.click();
-                        window.URL.revokeObjectURL(url);
-                        document.body.removeChild(a);
-                    };
-                    
-                    // Method 3: Copy to clipboard
-                    const copyToClipboard = async () => {
-                        try {
-                            await navigator.clipboard.writeText(emailBody);
-                            return true;
-                        } catch (err) {
-                            console.error('Clipboard write failed:', err);
-                            return false;
-                        }
-                    };
-                    
-                    // Show user options
-                    const userChoice = confirm(
-                        'Choose your preferred sharing method:\n\n' +
-                        'OK = Open email client with basic info\n' +
-                        'Cancel = Copy full scorecard to clipboard + download text file'
-                    );
-                    
-                    if (userChoice) {
-                        // User chose email client
-                        try {
-                            window.open(mailtoUrl, '_self');
-                        } catch (error) {
-                            alert('Could not open email client. Trying alternative method...');
-                            const copied = await copyToClipboard();
-                            createDownloadableFile();
-                            if (copied) {
-                                alert('Scorecard copied to clipboard AND downloaded as text file!');
-                            } else {
-                                alert('Scorecard downloaded as text file. Check your Downloads folder.');
-                            }
-                        }
-                    } else {
-                        // User chose clipboard + download
-                        const copied = await copyToClipboard();
-                        createDownloadableFile();
-                        
-                        if (copied) {
-                            alert('✅ Scorecard data copied to clipboard AND downloaded as text file!\n\nYou can now paste the data into any email or messaging app.');
-                        } else {
-                            alert('✅ Scorecard downloaded as text file!\n\nCheck your Downloads folder for the scorecard data.');
-                        }
-                    }
-                };
-                
-                tryEmailMethods();
+                const encodedSubject = encodeURIComponent(`Golf Scorecard: ${scorecardTitle}`);
+                const encodedBody = encodeURIComponent(emailBody);
+                const mailtoUrl = `mailto:?subject=${encodedSubject}&body=${encodedBody}`;
+                window.open(mailtoUrl, '_blank');
             };
 
             return (
@@ -411,9 +346,9 @@
                             <button
                                 onClick={handleAddPlayer}
                                 className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 mr-2"
-                                disabled={players.length >= 30}
+                                disabled={players.length >= 8}
                             >
-                                + Add Player ({players.length}/30)
+                                + Add Player ({players.length}/8)
                             </button>
                         </div>
                     </div>
