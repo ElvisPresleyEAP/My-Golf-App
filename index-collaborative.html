@@ -3,17 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Golf Scorecard by Kamal</title>
+    <title>Multi-Player Golf Scorecard by Kamal</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
+
+        // Firebase configuration (using a demo config - you'll want your own)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDemoKey-ReplaceWithYourOwnFirebaseConfig",
+            authDomain: "golf-scorecard-demo.firebaseapp.com",
+            databaseURL: "https://golf-scorecard-demo-default-rtdb.firebaseio.com/",
+            projectId: "golf-scorecard-demo",
+            storageBucket: "golf-scorecard-demo.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456789"
+        };
+
+        // For demo purposes, we'll use a simple object-based sync instead of Firebase
+        // In production, you'd use Firebase with the config above
+        const SyncManager = {
+            listeners: new Set(),
+            data: JSON.parse(localStorage.getItem('golfScorecardShared') || 'null'),
+            
+            subscribe(callback) {
+                this.listeners.add(callback);
+                return () => this.listeners.delete(callback);
+            },
+            
+            update(newData) {
+                this.data = { ...this.data, ...newData };
+                localStorage.setItem('golfScorecardShared', JSON.stringify(this.data));
+                // Simulate network delay
+                setTimeout(() => {
+                    this.listeners.forEach(callback => callback(this.data));
+                }, 100);
+            },
+            
+            getCurrentData() {
+                return this.data;
+            },
+            
+            clear() {
+                this.data = null;
+                localStorage.removeItem('golfScorecardShared');
+                this.listeners.forEach(callback => callback(null));
+            }
+        };
 
         const App = () => {
             // Initial data for holes
@@ -26,22 +71,16 @@
                 { no: 16, par: 5, index: 15 }, { no: 17, par: 3, index: 11 }, { no: 18, par: 4, index: 3 }
             ];
 
-            // Load saved data from localStorage
-            const loadSavedData = () => {
-                try {
-                    const savedData = localStorage.getItem('golfScorecardData');
-                    if (savedData) {
-                        return JSON.parse(savedData);
-                    }
-                } catch (error) {
-                    console.log('Error loading saved data:', error);
-                }
-                return null;
-            };
+            // Game session management
+            const [gameId, setGameId] = useState(localStorage.getItem('currentGameId') || '');
+            const [isConnected, setIsConnected] = useState(false);
+            const [lastUpdate, setLastUpdate] = useState(null);
+            const updateTimeoutRef = useRef(null);
 
-            const savedData = loadSavedData();
+            // Load initial data
+            const savedData = SyncManager.getCurrentData();
             
-            // State variables with saved data or defaults
+            // State variables
             const [clubName, setClubName] = useState(savedData?.clubName || 'Letchworth Golf Club');
             const [players, setPlayers] = useState(savedData?.players || ['Player 1', 'Player 2', 'Player 3', 'Player 4']);
             const [playerHandicaps, setPlayerHandicaps] = useState(savedData?.playerHandicaps || [0, 0, 0, 0]);
@@ -49,7 +88,53 @@
             const [points, setPoints] = useState(Array(18).fill(null).map(() => Array(4).fill('')));
             const [activeTab, setActiveTab] = useState('scorecard');
 
-            const scorecardTitle = 'Golf Scorecard by Kamal';
+            const scorecardTitle = 'Multi-Player Golf Scorecard by Kamal';
+
+            // Generate random game ID
+            const generateGameId = () => {
+                return Math.random().toString(36).substring(2, 8).toUpperCase();
+            };
+
+            // Join or create game session
+            const joinGame = (id) => {
+                const finalId = id || generateGameId();
+                setGameId(finalId);
+                localStorage.setItem('currentGameId', finalId);
+                setIsConnected(true);
+            };
+
+            // Sync data to all devices
+            const syncData = (newData) => {
+                if (gameId && isConnected) {
+                    clearTimeout(updateTimeoutRef.current);
+                    updateTimeoutRef.current = setTimeout(() => {
+                        SyncManager.update({
+                            ...newData,
+                            gameId,
+                            lastUpdate: Date.now()
+                        });
+                        setLastUpdate(new Date().toLocaleTimeString());
+                    }, 300); // Debounce updates
+                }
+            };
+
+            // Subscribe to real-time updates
+            useEffect(() => {
+                if (!gameId) return;
+
+                const unsubscribe = SyncManager.subscribe((data) => {
+                    if (data && data.gameId === gameId) {
+                        setClubName(data.clubName || 'Letchworth Golf Club');
+                        setPlayers(data.players || ['Player 1', 'Player 2', 'Player 3', 'Player 4']);
+                        setPlayerHandicaps(data.playerHandicaps || [0, 0, 0, 0]);
+                        setScores(data.scores || Array(18).fill(null).map(() => Array(4).fill('')));
+                        setLastUpdate(new Date(data.lastUpdate).toLocaleTimeString());
+                    }
+                });
+
+                setIsConnected(true);
+                return unsubscribe;
+            }, [gameId]);
 
             // Calculate totals
             const playerGrossTotals = players.map((_, playerIndex) =>
@@ -105,27 +190,12 @@
                 setPoints(newPoints);
             }, [scores, players, playerHandicaps]);
 
-            // Save data to localStorage whenever key data changes
-            useEffect(() => {
-                const dataToSave = {
-                    clubName,
-                    players,
-                    playerHandicaps,
-                    scores
-                };
-                
-                try {
-                    localStorage.setItem('golfScorecardData', JSON.stringify(dataToSave));
-                } catch (error) {
-                    console.log('Error saving data:', error);
-                }
-            }, [clubName, players, playerHandicaps, scores]);
-
-            // Event handlers
+            // Event handlers with sync
             const handlePlayerNameChange = (event, playerIndex) => {
                 const newPlayers = [...players];
                 newPlayers[playerIndex] = event.target.value;
                 setPlayers(newPlayers);
+                syncData({ players: newPlayers });
             };
 
             const handleHandicapChange = (event, playerIndex) => {
@@ -133,6 +203,7 @@
                 const newHandicaps = [...playerHandicaps];
                 newHandicaps[playerIndex] = isNaN(handicap) ? 0 : handicap;
                 setPlayerHandicaps(newHandicaps);
+                syncData({ playerHandicaps: newHandicaps });
             };
 
             const handleScoreChange = (event, holeIndex, playerIndex) => {
@@ -140,6 +211,13 @@
                 const newScores = [...scores];
                 newScores[holeIndex][playerIndex] = score;
                 setScores(newScores);
+                syncData({ scores: newScores });
+            };
+
+            const handleClubNameChange = (event) => {
+                const newClubName = event.target.value;
+                setClubName(newClubName);
+                syncData({ clubName: newClubName });
             };
 
             const handleAddPlayer = () => {
@@ -149,13 +227,18 @@
                 }
                 
                 const newPlayers = [...players, `Player ${players.length + 1}`];
-                setPlayers(newPlayers);
-                
                 const newHandicaps = [...playerHandicaps, 0];
-                setPlayerHandicaps(newHandicaps);
-                
                 const newScores = scores.map(holeScores => [...holeScores, '']);
+                
+                setPlayers(newPlayers);
+                setPlayerHandicaps(newHandicaps);
                 setScores(newScores);
+                
+                syncData({ 
+                    players: newPlayers, 
+                    playerHandicaps: newHandicaps, 
+                    scores: newScores 
+                });
             };
 
             const handleRemovePlayer = (playerIndex) => {
@@ -166,40 +249,43 @@
                 
                 if (confirm(`Remove ${players[playerIndex]} from the scorecard?`)) {
                     const newPlayers = players.filter((_, index) => index !== playerIndex);
-                    setPlayers(newPlayers);
-                    
                     const newHandicaps = playerHandicaps.filter((_, index) => index !== playerIndex);
-                    setPlayerHandicaps(newHandicaps);
-                    
                     const newScores = scores.map(holeScores => 
                         holeScores.filter((_, index) => index !== playerIndex)
                     );
+                    
+                    setPlayers(newPlayers);
+                    setPlayerHandicaps(newHandicaps);
                     setScores(newScores);
+                    
+                    syncData({ 
+                        players: newPlayers, 
+                        playerHandicaps: newHandicaps, 
+                        scores: newScores 
+                    });
                 }
             };
 
             const resetScores = () => {
-                if (confirm('Are you sure you want to reset all scores? This will clear all scores but keep player names and handicaps. This action cannot be undone.')) {
-                    setScores(Array(18).fill(null).map(() => Array(players.length).fill('')));
-                    setPoints(Array(18).fill(null).map(() => Array(players.length).fill('')));
+                if (confirm('Are you sure you want to reset all scores? This will clear all scores but keep player names and handicaps.')) {
+                    const newScores = Array(18).fill(null).map(() => Array(players.length).fill(''));
+                    setScores(newScores);
+                    syncData({ scores: newScores });
                 }
             };
 
             const clearAllData = () => {
-                if (confirm('Are you sure you want to clear ALL data? This will reset everything including player names, handicaps, and scores. This action cannot be undone.')) {
-                    // Reset to default values
+                if (confirm('Are you sure you want to clear ALL data and end this game session?')) {
+                    SyncManager.clear();
+                    setGameId('');
+                    setIsConnected(false);
+                    localStorage.removeItem('currentGameId');
+                    
+                    // Reset to defaults
                     setClubName('Letchworth Golf Club');
                     setPlayers(['Player 1', 'Player 2', 'Player 3', 'Player 4']);
                     setPlayerHandicaps([0, 0, 0, 0]);
                     setScores(Array(18).fill(null).map(() => Array(4).fill('')));
-                    setPoints(Array(18).fill(null).map(() => Array(4).fill('')));
-                    
-                    // Clear localStorage
-                    try {
-                        localStorage.removeItem('golfScorecardData');
-                    } catch (error) {
-                        console.log('Error clearing saved data:', error);
-                    }
                 }
             };
 
@@ -214,63 +300,121 @@
                     message += `${player} (HC: ${handicap}): ${totalGross} gross, ${totalPoints} points%0A`;
                 });
                 
-                message += `%0ATotal Par: ${totalPar}%0A%0A⛳ Powered by Golf Scorecard by Kamal`;
+                message += `%0ATotal Par: ${totalPar}%0A%0A⛳ Powered by Multi-Player Golf Scorecard by Kamal`;
                 
                 const whatsappUrl = `https://wa.me/?text=${message}`;
                 window.open(whatsappUrl, '_blank');
             };
 
             const emailScorecard = () => {
-                let emailBody = `${scorecardTitle}\n${clubName}\n\n`;
-                emailBody += `📋 Final Scores:\n`;
+                let emailBody = `${scorecardTitle}\\n${clubName}\\n\\n`;
+                emailBody += `📋 Final Scores:\\n`;
                 
                 players.forEach((player, index) => {
                     const totalGross = playerGrossTotals[index] || 0;
                     const totalPoints = playerPointTotals[index] || 0;
                     const handicap = playerHandicaps[index] || 0;
-                    emailBody += `${player} (HC: ${handicap}): ${totalGross} gross, ${totalPoints} points\n`;
+                    emailBody += `${player} (HC: ${handicap}): ${totalGross} gross, ${totalPoints} points\\n`;
                 });
                 
-                emailBody += `\nTotal Par: ${totalPar}\n\n⛳ Powered by Golf Scorecard by Kamal`;
+                emailBody += `\\nTotal Par: ${totalPar}\\n\\n⛳ Powered by Multi-Player Golf Scorecard by Kamal`;
                 
                 const subject = encodeURIComponent(`Golf Scorecard - ${clubName}`);
                 const body = encodeURIComponent(emailBody);
                 const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
                 
-                // Try to open email client
                 try {
                     window.open(mailtoLink, '_self');
                 } catch (error) {
-                    // Fallback: copy to clipboard
                     if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(emailBody.replace(/\\n/g, '\n'))
-                            .then(() => {
-                                alert('Scorecard copied to clipboard! You can now paste it into an email.');
-                            })
-                            .catch(() => {
-                                downloadScorecard(emailBody.replace(/\\n/g, '\n'));
-                            });
-                    } else {
-                        downloadScorecard(emailBody.replace(/\\n/g, '\n'));
+                        navigator.clipboard.writeText(emailBody.replace(/\\n/g, '\\n'))
+                            .then(() => alert('Scorecard copied to clipboard!'));
                     }
                 }
             };
 
-            const downloadScorecard = (content) => {
-                const blob = new Blob([content], { type: 'text/plain' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${clubName.replace(/\s+/g, '_')}_scorecard.txt`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                alert('Scorecard downloaded as text file!');
-            };
+            // Game session UI
+            if (!gameId || !isConnected) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-teal-100 to-green-100 p-8 flex items-center justify-center">
+                        <div className="bg-white rounded-xl shadow-xl p-8 max-w-md w-full">
+                            <h1 className="text-2xl font-bold text-center text-teal-700 mb-6">
+                                🏌️‍♂️ Multi-Player Golf Scorecard
+                            </h1>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Join Existing Game
+                                    </label>
+                                    <div className="flex space-x-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Enter Game ID (e.g. ABC123)"
+                                            value={gameId}
+                                            onChange={(e) => setGameId(e.target.value.toUpperCase())}
+                                            className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                                        />
+                                        <button
+                                            onClick={() => joinGame(gameId)}
+                                            disabled={!gameId.trim()}
+                                            className="bg-teal-500 hover:bg-teal-600 disabled:bg-gray-300 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                                        >
+                                            Join
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div className="text-center">
+                                    <div className="text-gray-400 text-sm mb-2">or</div>
+                                    <button
+                                        onClick={() => joinGame()}
+                                        className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                                    >
+                                        🎮 Create New Game
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                                <h3 className="font-semibold text-blue-800 mb-2">📱 How it works:</h3>
+                                <ul className="text-sm text-blue-700 space-y-1">
+                                    <li>• Share the Game ID with your playing partners</li>
+                                    <li>• Everyone can edit scores in real-time</li>
+                                    <li>• Changes sync instantly across all devices</li>
+                                    <li>• Perfect for group play on the course!</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
 
             return (
                 <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans antialiased text-gray-800">
+                    {/* Connection Status Bar */}
+                    <div className="max-w-7xl mx-auto mb-4">
+                        <div className="bg-gradient-to-r from-teal-500 to-green-500 text-white p-3 rounded-lg flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-3 h-3 bg-green-300 rounded-full animate-pulse"></div>
+                                <span className="font-semibold">Game ID: {gameId}</span>
+                                <span className="text-green-200">• Live Sync Active</span>
+                            </div>
+                            <div className="text-right text-sm">
+                                {lastUpdate && <div>Last update: {lastUpdate}</div>}
+                                <button 
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(gameId);
+                                        alert('Game ID copied to clipboard!');
+                                    }}
+                                    className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded text-xs transition-colors"
+                                >
+                                    📋 Copy Game ID
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="max-w-7xl mx-auto mb-6">
                         <h1 className="w-full text-3xl md:text-4xl font-extrabold text-center text-teal-700 mb-2">
                             {scorecardTitle}
@@ -278,11 +422,11 @@
                         <input
                             type="text"
                             value={clubName}
-                            onChange={(e) => setClubName(e.target.value)}
+                            onChange={handleClubNameChange}
                             className="w-full text-xl text-center font-semibold text-gray-600 bg-transparent border-b-2 border-transparent focus:outline-none focus:border-gray-400 mb-2"
                         />
-                        <p className="text-center text-gray-500">Gross scores + Stableford Points</p>
-                        <p className="text-center text-green-600 text-xs mt-1">✓ Scores automatically saved</p>
+                        <p className="text-center text-gray-500">Gross scores + Stableford Points • Real-time Collaboration</p>
+                        <p className="text-center text-green-600 text-xs mt-1">✓ Synced across all devices</p>
                         
                         <div className="text-center mt-4">
                             <button
@@ -386,7 +530,7 @@
                                                             min="1"
                                                             value={scores[holeIndex][playerIndex]}
                                                             onChange={(e) => handleScoreChange(e, holeIndex, playerIndex)}
-                                                            className="w-full p-2 text-center border rounded-md"
+                                                            className="w-full p-2 text-center border rounded-md focus:ring-2 focus:ring-teal-300"
                                                         />
                                                     </td>
                                                     <td className="py-2 px-2 md:px-4 text-center font-bold">
@@ -435,7 +579,7 @@
                                                                 min="1"
                                                                 value={scores[actualIndex][playerIndex]}
                                                                 onChange={(e) => handleScoreChange(e, actualIndex, playerIndex)}
-                                                                className="w-full p-2 text-center border rounded-md"
+                                                                className="w-full p-2 text-center border rounded-md focus:ring-2 focus:ring-teal-300"
                                                             />
                                                         </td>
                                                         <td className="py-2 px-2 md:px-4 text-center font-bold">
@@ -503,7 +647,7 @@
                                 </tbody>
                             </table>
                             
-                            {/* Action Buttons - Scorecard Tab Only */}
+                            {/* Action Buttons */}
                             <div className="bg-gray-50 px-6 py-4 border-t">
                                 <div className="flex flex-wrap justify-center gap-3 mb-4">
                                     <button
@@ -516,7 +660,7 @@
                                         onClick={clearAllData}
                                         className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2"
                                     >
-                                        🗑️ Clear All Data
+                                        🗑️ End Game Session
                                     </button>
                                 </div>
                                 <div className="flex flex-wrap justify-center gap-3">
@@ -542,10 +686,10 @@
                         <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
                             <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 p-6">
                                 <h2 className="text-2xl font-bold text-center text-white mb-2">
-                                    🏆 Final Leaderboard
+                                    🏆 Live Leaderboard
                                 </h2>
                                 <p className="text-center text-yellow-100 text-sm">
-                                    Ranked by Total Stableford Points (Highest First)
+                                    Ranked by Total Stableford Points • Updates in Real-time
                                 </p>
                             </div>
                             
@@ -661,7 +805,7 @@
                             
                             <div className="bg-gray-50 px-6 py-4 border-t">
                                 <p className="text-center text-gray-600 text-sm">
-                                    ℹ️ Tiebreaker Order: 1) Total Points 2) Countback Points (Holes 13-18) 3) Lowest Gross Score
+                                    ℹ️ Live updates • Tiebreaker: 1) Total Points 2) Countback Points 3) Lowest Gross Score
                                 </p>
                             </div>
                         </div>

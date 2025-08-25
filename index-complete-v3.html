@@ -26,26 +26,11 @@
                 { no: 16, par: 5, index: 15 }, { no: 17, par: 3, index: 11 }, { no: 18, par: 4, index: 3 }
             ];
 
-            // Load saved data from localStorage
-            const loadSavedData = () => {
-                try {
-                    const savedData = localStorage.getItem('golfScorecardData');
-                    if (savedData) {
-                        return JSON.parse(savedData);
-                    }
-                } catch (error) {
-                    console.log('Error loading saved data:', error);
-                }
-                return null;
-            };
-
-            const savedData = loadSavedData();
-            
-            // State variables with saved data or defaults
-            const [clubName, setClubName] = useState(savedData?.clubName || 'Letchworth Golf Club');
-            const [players, setPlayers] = useState(savedData?.players || ['Player 1', 'Player 2', 'Player 3', 'Player 4']);
-            const [playerHandicaps, setPlayerHandicaps] = useState(savedData?.playerHandicaps || [0, 0, 0, 0]);
-            const [scores, setScores] = useState(savedData?.scores || Array(18).fill(null).map(() => Array(4).fill('')));
+            // State variables
+            const [clubName, setClubName] = useState('Letchworth Golf Club');
+            const [players, setPlayers] = useState(['Player 1', 'Player 2', 'Player 3', 'Player 4']);
+            const [playerHandicaps, setPlayerHandicaps] = useState([0, 0, 0, 0]);
+            const [scores, setScores] = useState(Array(18).fill(null).map(() => Array(4).fill('')));
             const [points, setPoints] = useState(Array(18).fill(null).map(() => Array(4).fill('')));
             const [activeTab, setActiveTab] = useState('scorecard');
 
@@ -105,22 +90,6 @@
                 setPoints(newPoints);
             }, [scores, players, playerHandicaps]);
 
-            // Save data to localStorage whenever key data changes
-            useEffect(() => {
-                const dataToSave = {
-                    clubName,
-                    players,
-                    playerHandicaps,
-                    scores
-                };
-                
-                try {
-                    localStorage.setItem('golfScorecardData', JSON.stringify(dataToSave));
-                } catch (error) {
-                    console.log('Error saving data:', error);
-                }
-            }, [clubName, players, playerHandicaps, scores]);
-
             // Event handlers
             const handlePlayerNameChange = (event, playerIndex) => {
                 const newPlayers = [...players];
@@ -179,27 +148,9 @@
             };
 
             const resetScores = () => {
-                if (confirm('Are you sure you want to reset all scores? This will clear all scores but keep player names and handicaps. This action cannot be undone.')) {
+                if (confirm('Are you sure you want to reset all scores? This action cannot be undone.')) {
                     setScores(Array(18).fill(null).map(() => Array(players.length).fill('')));
                     setPoints(Array(18).fill(null).map(() => Array(players.length).fill('')));
-                }
-            };
-
-            const clearAllData = () => {
-                if (confirm('Are you sure you want to clear ALL data? This will reset everything including player names, handicaps, and scores. This action cannot be undone.')) {
-                    // Reset to default values
-                    setClubName('Letchworth Golf Club');
-                    setPlayers(['Player 1', 'Player 2', 'Player 3', 'Player 4']);
-                    setPlayerHandicaps([0, 0, 0, 0]);
-                    setScores(Array(18).fill(null).map(() => Array(4).fill('')));
-                    setPoints(Array(18).fill(null).map(() => Array(4).fill('')));
-                    
-                    // Clear localStorage
-                    try {
-                        localStorage.removeItem('golfScorecardData');
-                    } catch (error) {
-                        console.log('Error clearing saved data:', error);
-                    }
                 }
             };
 
@@ -504,35 +455,25 @@
                             </table>
                             
                             {/* Action Buttons - Scorecard Tab Only */}
-                            <div className="bg-gray-50 px-6 py-4 border-t">
-                                <div className="flex flex-wrap justify-center gap-3 mb-4">
-                                    <button
-                                        onClick={resetScores}
-                                        className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2"
-                                    >
-                                        🔄 Reset Scores
-                                    </button>
-                                    <button
-                                        onClick={clearAllData}
-                                        className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2"
-                                    >
-                                        🗑️ Clear All Data
-                                    </button>
-                                </div>
-                                <div className="flex flex-wrap justify-center gap-3">
-                                    <button
-                                        onClick={emailScorecard}
-                                        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2"
-                                    >
-                                        📧 Email Scorecard
-                                    </button>
-                                    <button
-                                        onClick={shareViaWhatsApp}
-                                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2"
-                                    >
-                                        💬 Share via WhatsApp
-                                    </button>
-                                </div>
+                            <div className="bg-gray-50 px-6 py-4 border-t flex flex-wrap justify-center gap-4">
+                                <button
+                                    onClick={resetScores}
+                                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2"
+                                >
+                                    🔄 Reset Scores
+                                </button>
+                                <button
+                                    onClick={emailScorecard}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2"
+                                >
+                                    📧 Email Scorecard
+                                </button>
+                                <button
+                                    onClick={shareViaWhatsApp}
+                                    className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 flex items-center gap-2"
+                                >
+                                    💬 Share via WhatsApp
+                                </button>
                             </div>
                         </div>
                     )}
